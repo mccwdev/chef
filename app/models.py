@@ -113,6 +113,7 @@ class User(UserMixin, PaginatedAPIMixin, db.Model):
     notifications = db.relationship('Notification', backref='user',
                                     lazy='dynamic')
     tasks = db.relationship('Task', backref='user', lazy='dynamic')
+    is_parent = db.Boolean()
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
