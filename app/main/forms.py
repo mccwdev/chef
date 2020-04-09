@@ -1,9 +1,9 @@
 from flask import request
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, TextAreaField, BooleanField
+from wtforms import StringField, SubmitField, TextAreaField, BooleanField, SelectField, IntegerField
 from wtforms.validators import ValidationError, DataRequired, Length
 from flask_babel import _, lazy_gettext as _l
-from app.models import User
+from app.models import User, CHOICES_PRIORITY
 
 
 class EditProfileForm(FlaskForm):
@@ -42,4 +42,13 @@ class SearchForm(FlaskForm):
 class MessageForm(FlaskForm):
     message = TextAreaField(_l('Message'), validators=[
         DataRequired(), Length(min=1, max=140)])
+    submit = SubmitField(_l('Submit'))
+
+
+class TodoCreateForm(FlaskForm):
+    name = StringField(_l('Todo'), validators=[DataRequired()])
+    description = StringField(_('Description'))
+    assigned_to_user_id = SelectField(_('Assign to'), coerce=int, validators=[DataRequired()])
+    score = IntegerField(_('Score'), default=1)
+    priority = SelectField(_('Priority'), default=3, coerce=int, choices=CHOICES_PRIORITY)
     submit = SubmitField(_l('Submit'))

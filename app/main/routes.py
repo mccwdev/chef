@@ -1,12 +1,12 @@
 from datetime import datetime
 from flask import render_template, flash, redirect, url_for, request, g, \
-    jsonify, current_app
+    jsonify, current_app, Markup
 from flask_login import current_user, login_required
 from flask_babel import _, get_locale
 from guess_language import guess_language
 from app import db
-from app.main.forms import EditProfileForm, PostForm, SearchForm, MessageForm
-from app.models import User, Post, Message, Notification
+from app.main.forms import EditProfileForm, PostForm, SearchForm, MessageForm, TodoCreateForm
+from app.models import User, Post, Message, Notification, Todo
 from app.translate import translate
 from app.main import bp
 
@@ -20,36 +20,37 @@ def before_request():
     g.locale = str(get_locale())
 
 
-@bp.route('/', methods=['GET', 'POST'])
-@bp.route('/index', methods=['GET', 'POST'])
+@bp.route('/')
+@bp.route('/index')
 @login_required
 def index():
-    form = PostForm()
-    if form.validate_on_submit():
-        language = guess_language(form.post.data)
-        if language == 'UNKNOWN' or len(language) > 5:
-            language = ''
-        post = Post(body=form.post.data, author=current_user,
-                    language=language)
-        db.session.add(post)
-        db.session.commit()
-        flash(_('Your post is now live!'))
-        return redirect(url_for('main.index'))
+
     page = request.args.get('page', 1, type=int)
-    posts = current_user.followed_posts().paginate(
+    posts = Post.query.order_by(Post.timestamp.desc()).paginate(
         page, current_app.config['POSTS_PER_PAGE'], False)
     next_url = url_for('main.index', page=posts.next_num) \
         if posts.has_next else None
     prev_url = url_for('main.index', page=posts.prev_num) \
         if posts.has_prev else None
-    return render_template('index.html', title=_('Home'), form=form,
+    todo_list = Todo.query.filter(Todo.assigned_to_user_id == current_user.id, Todo.priority <= 3).all()
+    return render_template('index.html', title=_('Home'),
                            posts=posts.items, next_url=next_url,
-                           prev_url=prev_url)
+                           prev_url=prev_url, todo_list=todo_list)
 
 
-@bp.route('/explore')
+@bp.route('/explore', methods=['GET', 'POST'])
 @login_required
 def explore():
+    form = PostForm()
+    if form.validate_on_submit():
+        language = guess_language(form.post.data)
+        if language == 'UNKNOWN' or len(language) > 5:
+            language = ''
+        post = Post(body=form.post.data, author=current_user, language=language)
+        db.session.add(post)
+        db.session.commit()
+        flash(_('Your post is now live!'))
+        return redirect(url_for('main.index'))
     page = request.args.get('page', 1, type=int)
     posts = Post.query.order_by(Post.timestamp.desc()).paginate(
         page, current_app.config['POSTS_PER_PAGE'], False)
@@ -57,7 +58,7 @@ def explore():
         if posts.has_next else None
     prev_url = url_for('main.explore', page=posts.prev_num) \
         if posts.has_prev else None
-    return render_template('index.html', title=_('Explore'),
+    return render_template('index.html', title=_('Posts'), form=form,
                            posts=posts.items, next_url=next_url,
                            prev_url=prev_url)
 
@@ -84,20 +85,29 @@ def user_popup(username):
     return render_template('user_popup.html', user=user)
 
 
-@bp.route('/edit_profile', methods=['GET', 'POST'])
+@bp.route('/edit_profile', defaults={'username': ''}, methods=['GET', 'POST'])
+@bp.route('/edit_profile/<username>', methods=['GET', 'POST'])
 @login_required
-def edit_profile():
-    form = EditProfileForm(current_user.username)
+def edit_profile(username):
+    if not current_user.is_parent:
+        return redirect(url_for('main.user', username=username))
+    if username:
+        user = User.query.filter_by(username=username).first_or_404()
+    else:
+        user = current_user
+    form = EditProfileForm(user.username)
     if form.validate_on_submit():
-        current_user.username = form.username.data
-        current_user.about_me = form.about_me.data
+        user.username = form.username.data
+        user.about_me = form.about_me.data
+        user.is_parent = form.is_parent.data
         db.session.commit()
         flash(_('Your changes have been saved.'))
-        return redirect(url_for('main.edit_profile'))
+        return redirect(url_for('main.edit_profile', username=user.username))
     elif request.method == 'GET':
-        form.username.data = current_user.username
-        form.about_me.data = current_user.about_me
-    return render_template('edit_profile.html', title=_('Edit Profile'),
+        form.username.data = user.username
+        form.about_me.data = user.about_me
+        form.is_parent.data = user.is_parent
+    return render_template('edit_profile.html', title=_('Edit Profile'), user=user,
                            form=form)
 
 
@@ -214,3 +224,117 @@ def notifications():
         'data': n.get_data(),
         'timestamp': n.timestamp
     } for n in notifications])
+
+
+@bp.route('/todo_list', defaults={'username': ''})
+@bp.route('/todo_list/<username>')
+@login_required
+def todo_list(username):
+    show_completed = request.args.get('show_completed', False, type=bool)
+    user = User.query.filter_by(username=username).first()
+    qry = Todo.query
+    if not show_completed:
+        qry = qry.filter(Todo.completed.is_(False))
+    if user:
+        qry = qry.filter(Todo.assigned_to_user_id == user.id)
+    todo_list = qry.order_by(Todo.priority).all()
+    # TODO: paginate
+    return render_template('todo_list.html', todo_list=todo_list, username=username, show_completed=show_completed)
+
+
+@bp.route('/todo/<id>')
+@login_required
+def todo(id):
+    todo = Todo.query.filter(Todo.id == id).first_or_404()
+    return render_template('todo.html', todo=todo)
+
+
+@bp.route('/todo/<id>/set_done/<completed>')
+@login_required
+def todo_done(id, completed):
+    if not current_user.is_parent:
+        flash(_('Only parents can update tasks'))
+        return redirect(url_for('main.todo', id=id))
+    todo = Todo.query.filter(Todo.id == id).first()
+    if todo is None:
+        flash(_('Todo with id %(id)s not found.', id=id))
+        return redirect(url_for('main.todo', id=id))
+    todo.completed = bool(int(completed))
+    todo.assigned_to.score = 1
+    db.session.commit()
+    if completed:
+        flash(_('Task %(name)s is done', name=todo.name))
+    else:
+        flash(_('Task %(name)s is set back to todo', name=todo.name))
+    return redirect(url_for('main.todo_list', username=current_user.username))
+
+
+@bp.route('/todo/<id>/delete')
+@login_required
+def todo_delete(id):
+    iamsure = request.args.get('iamsure', False, type=bool)
+    if not current_user.is_parent:
+        flash(_('Only parents can update tasks'))
+        return redirect(url_for('main.todo', id=id))
+    todo = Todo.query.filter(Todo.id == id).first()
+    if todo is None:
+        flash(_('Todo with id %(id)s not found.', id=id))
+        return redirect(url_for('main.todo', id=id))
+    if bool(int(iamsure)):
+        db.session.delete(todo)
+        db.session.commit()
+        flash(_('Task %(name)s is deleted', name=todo.name))
+        return redirect(url_for('main.todo_list', username=current_user.username))
+    else:
+        delete_url = url_for('main.todo_delete', id=id)
+        cancel_url = url_for('main.todo', id=id)
+        flash(_(Markup('Are you sure you want to delete task "%(name)s"? This can not be undone!<br><br> '
+                       '<a href="%(delete_url)s?iamsure=1">Yes</a> or <a href="%(cancel_url)s">No</a>'),
+                name=todo.name, delete_url=delete_url, cancel_url=cancel_url))
+        return redirect(url_for('main.todo', id=todo.id))
+
+
+@bp.route('/todo_create', methods=['GET', 'POST'])
+@login_required
+def todo_create():
+    form = TodoCreateForm()
+    form.assigned_to_user_id.choices = [(u.id, u.username) for u in User.query.order_by('username')]
+    form.assigned_to_user_id.default = current_user.id
+    if form.validate_on_submit():
+        todo = Todo(name=form.name.data, description=form.description.data, assigned_by_user_id=current_user.id,
+                    assigned_to_user_id=form.assigned_to_user_id.data, priority=form.priority.data,
+                    score=form.score.data)
+        db.session.add(todo)
+        db.session.commit()
+        flash(_('Task %s Added' % form.name.data))
+        return redirect(url_for('main.todo_list', username=current_user.username))
+    return render_template('todo_create.html', form=form)
+
+
+@bp.route('/todo_edit/<id>', methods=['GET', 'POST'])
+@login_required
+def todo_edit(id):
+    todo = Todo.query.filter(Todo.id == id).first()
+    if todo is None:
+        flash(_('Todo with id %(id)s not found.', id=id))
+        return redirect(url_for('main.todo', id=id))
+    form = TodoCreateForm()
+    form.assigned_to_user_id.choices = [(u.id, u.username) for u in User.query.order_by('username')]
+    form.assigned_to_user_id.default = current_user.id
+    if form.validate_on_submit():
+        todo.name = form.name.data
+        todo.description = form.description.data
+        todo.assigned_to_user_id = form.assigned_to_user_id.data
+        todo.priority = form.priority.data
+        todo.score = form.score.data
+        db.session.commit()
+        flash(_('Task %s updated' % form.name.data))
+        return redirect(url_for('main.todo_list', username=current_user.username))
+    elif request.method == 'GET':
+        form.name.data = todo.name
+        form.description.data = todo.description
+        form.assigned_to_user_id.data = todo.assigned_to_user_id
+        form.priority.data = todo.priority
+        form.score.data = todo.score
+
+    return render_template('todo_edit.html', form=form)

@@ -40,14 +40,13 @@ def register():
         return redirect(url_for('main.index'))
     form = RegistrationForm()
     if form.validate_on_submit():
-        user = User(username=form.username.data, email=form.email.data)
+        user = User(username=form.username.data, email=form.email.data, is_parent=form.is_parent.data)
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
         flash(_('Congratulations, you are now a registered user!'))
         return redirect(url_for('auth.login'))
-    return render_template('auth/register.html', title=_('Register'),
-                           form=form)
+    return render_template('auth/register.html', title=_('Register'), form=form)
 
 
 @bp.route('/reset_password_request', methods=['GET', 'POST'])

@@ -4,8 +4,10 @@ from hashlib import md5
 import json
 import os
 from time import time
+from sqlalchemy.sql import expression
 from flask import current_app, url_for
 from flask_login import UserMixin
+from flask_babel import _
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import redis
@@ -14,6 +16,13 @@ from app import db, login
 from app.search import add_to_index, remove_from_index, query_index
 
 
+CHOICES_PRIORITY = [
+    (1, _('Highest')),
+    (2, _('High')),
+    (3, _('Normal')),
+    (4, _('Low')),
+    (5, _('Lowest'))
+]
 class SearchableMixin(object):
     @classmethod
     def search(cls, expression, page, per_page):
@@ -103,17 +112,16 @@ class User(UserMixin, PaginatedAPIMixin, db.Model):
         primaryjoin=(followers.c.follower_id == id),
         secondaryjoin=(followers.c.followed_id == id),
         backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
-    messages_sent = db.relationship('Message',
-                                    foreign_keys='Message.sender_id',
+    messages_sent = db.relationship('Message', foreign_keys='Message.sender_id',
                                     backref='author', lazy='dynamic')
-    messages_received = db.relationship('Message',
-                                        foreign_keys='Message.recipient_id',
+    messages_received = db.relationship('Message', foreign_keys='Message.recipient_id',
                                         backref='recipient', lazy='dynamic')
     last_message_read_time = db.Column(db.DateTime)
-    notifications = db.relationship('Notification', backref='user',
-                                    lazy='dynamic')
+    notifications = db.relationship('Notification', backref='user', lazy='dynamic')
     tasks = db.relationship('Task', backref='user', lazy='dynamic')
-    is_parent = db.Boolean()
+    is_parent = db.Column(db.Boolean(), default=False)
+    score = db.Column(db.Integer)
+    todo_list = db.relationship('Todo', foreign_keys='Todo.assigned_to_user_id', backref='assigned_to', lazy='dynamic')
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -239,6 +247,17 @@ class User(UserMixin, PaginatedAPIMixin, db.Model):
 @login.user_loader
 def load_user(id):
     return User.query.get(int(id))
+
+
+class Todo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), index=True)
+    description = db.Column(db.String(128))
+    assigned_to_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    assigned_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    priority = db.Column(db.Integer, default=3)
+    score = db.Column(db.Integer, default=1)
+    completed = db.Column(db.Boolean, server_default="false", default=False, nullable=False)
 
 
 class Post(SearchableMixin, db.Model):

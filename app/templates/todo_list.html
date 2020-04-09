@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block app_content %}
+    <h1>{{ _('Todo List') }}</h1>
+    <table class="table table-hover">
+        {% if not todo_list: %}
+            <p>{{ _('Wow, you have nothing to do!') }}</p>
+        {% endif %}
+        {% for todo in todo_list %}
+            {% include '_todo.html' %}
+        {% endfor %}
+        <tr>
+        <td colspan="2">
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav navbar-left">
+                    <li>
+                        {% if username %}
+                            <a href="{{ url_for('main.todo_list', show_completed=show_completed) }}">
+                                {{ _('Show all users') }}</a>
+                        {% else %}
+                            <a href="{{ url_for('main.todo_list', show_completed=show_completed,
+                            username=current_user.username) }}">{{ _('Only my tasks') }}</a>
+                        {% endif %}
+                    </li>
+                    <li>
+                        {% if show_completed %}
+                            <a href="{{ url_for('main.todo_list', username=username) }}">
+                                {{ _('Show only uncompleted tasks') }}</a>
+                        {% else %}
+                            <a href="{{ url_for('main.todo_list', show_completed=True, username=username) }}">
+                                {{ _('Include completed tasks') }}
+                            </a>
+                        {% endif %}
+                    </li>
+                    <li>
+                        <a href="{{ url_for('main.todo_create') }}">
+                            {{ _('Create new task') }}
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </td>
+    </tr>
+    </table>
+{% endblock %}

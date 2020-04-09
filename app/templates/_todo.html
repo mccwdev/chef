@@ -1,0 +1,27 @@
+            <tr >
+                {% if todo.assigned_to: %}
+                    <td width="70px">
+                        <a href="{{ url_for('main.user', username=todo.assigned_to.username) }}">
+                            <img src="{{ todo.assigned_to.avatar(35) }}" />
+                        </a>
+                    </td>
+                {% endif %}
+                <td>
+                    {% if todo.completed %}
+                        <strike>
+                            <a href="{{ url_for('main.todo', id=todo.id) }}">{{ todo.name }}</a>
+                        </strike>
+                    {% else %}
+                        <a href="{{ url_for('main.todo', id=todo.id) }}">{{ todo.name }}</a>
+                    {% endif %}
+                </td>
+                <td>
+                    {{ todo.description }}
+                </td>
+                <td>
+                    {{ todo.score }}
+                </td>
+                <td>
+                    {{ todo.priority }}
+                </td>
+            </tr>

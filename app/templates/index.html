@@ -3,6 +3,18 @@
 
 {% block app_content %}
     <h1>{{ _('Hi, %(username)s!', username=current_user.username) }}</h1>
+    {% if todo_list: %}
+        <h2>{{ _('Todo List') }}</h2>
+        <table class="table table-hover">
+            {% if not todo_list: %}
+                <p>{{ _('Wow, you have nothing to do!') }}</p>
+            {% endif %}
+            {% for todo in todo_list %}
+                {% include '_todo.html' %}
+            {% endfor %}
+        </table>
+    {% endif %}
+    <h2>{{ _('Posts') }}</h2>
     {% if form %}
     {{ wtf.quick_form(form) }}
     <br>

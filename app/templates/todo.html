@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block app_content %}
+    <h1>{{ _('Todo') }} - {{ todo.name }}</h1>
+    <p>{{ todo.description }}</p>
+    <table class="table table-hover">
+    <tr>
+        <td width="100px">{{ _('Assigned to') }}</td>
+        <td>
+            <a href="{{ url_for('main.user', username=todo.assigned_to.username) }}">
+                <img src="{{ todo.assigned_to.avatar(25) }}" />
+            </a>
+            {{ todo.assigned_to.username }}
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {{ _('Priority') }}
+        </td>
+        <td>
+            {{ todo.priority }}
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {{ _('Score') }}
+        </td>
+        <td>
+            {{ todo.score }}
+        </td>
+    </tr>
+    <tr>
+        <td>
+            {{ _('Completed') }}
+        </td>
+        <td>
+            {{ todo.completed }}
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2">
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav navbar-left">
+                    <li>
+                        {% if todo.completed %}
+                            <a href="{{ url_for('main.todo_done', id=todo.id, completed=0) }}">NOT DONE</a>
+                        {% else %}
+                            <a href="{{ url_for('main.todo_done', id=todo.id, completed=1) }}">DONE</a>
+                        {% endif %}
+                    </li>
+                    <li><a href="{{ url_for('main.todo_delete', id=todo.id) }}" style="color: orangered;">Delete</a></li>
+                    <li><a href="{{ url_for('main.todo_edit', id=todo.id) }}">Edit</a></li>
+                </ul>
+            </div>
+        </td>
+    </tr>
+    </table>
+    <p>
+        <a href="{{ url_for('main.todo_list', username=current_user.username) }}">
+            {{ _('Back to todo list') }}
+        </a>
+    </p>
+
+{% endblock %}
