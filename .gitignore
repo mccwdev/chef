@@ -35,6 +35,10 @@ nosetests.xml
 .project
 .pydevproject
 
+# Pycharm
+.idea
+
+# Local
 venv
 app.db
-microblog.log*
+chef.log*
