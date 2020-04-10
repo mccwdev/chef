@@ -1,8 +1,8 @@
 FROM python:3.6-alpine
 
-RUN adduser -D microblog
+RUN adduser -D chef
 
-WORKDIR /home/microblog
+WORKDIR /home/chef
 
 COPY requirements.txt requirements.txt
 RUN python -m venv venv
@@ -11,13 +11,13 @@ RUN venv/bin/pip install gunicorn pymysql
 
 COPY app app
 COPY migrations migrations
-COPY microblog.py config.py boot.sh ./
+COPY chef.py config.py boot.sh ./
 RUN chmod a+x boot.sh
 
-ENV FLASK_APP microblog.py
+ENV FLASK_APP chef.py
 
-RUN chown -R microblog:microblog ./
-USER microblog
+RUN chown -R chef:chef ./
+USER chef
 
 EXPOSE 5000
 ENTRYPOINT ["./boot.sh"]
