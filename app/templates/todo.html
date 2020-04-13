@@ -37,23 +37,25 @@
             {{ todo.completed }}
         </td>
     </tr>
-    <tr>
-        <td colspan="2">
-            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-                <ul class="nav navbar-nav navbar-left">
-                    <li>
-                        {% if todo.completed %}
-                            <a href="{{ url_for('main.todo_done', id=todo.id, completed=0) }}">NOT DONE</a>
-                        {% else %}
-                            <a href="{{ url_for('main.todo_done', id=todo.id, completed=1) }}">DONE</a>
-                        {% endif %}
-                    </li>
-                    <li><a href="{{ url_for('main.todo_delete', id=todo.id) }}" style="color: orangered;">Delete</a></li>
-                    <li><a href="{{ url_for('main.todo_edit', id=todo.id) }}">Edit</a></li>
-                </ul>
-            </div>
-        </td>
-    </tr>
+    {% if current_user.get_id() %}
+        <tr>
+            <td colspan="2">
+                <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                    <ul class="nav navbar-nav navbar-left">
+                        <li>
+                            {% if todo.completed %}
+                                <a href="{{ url_for('main.todo_done', id=todo.id, completed=0) }}">{{ _('NOT DONE') }}</a>
+                            {% else %}
+                                <a href="{{ url_for('main.todo_done', id=todo.id, completed=1) }}">{{ _('DONE') }}</a>
+                            {% endif %}
+                        </li>
+                        <li><a href="{{ url_for('main.todo_delete', id=todo.id) }}" style="color: orangered;">{{ _('Delete') }}</a></li>
+                        <li><a href="{{ url_for('main.todo_edit', id=todo.id) }}">{{ _('Edit') }}</a></li>
+                    </ul>
+                </div>
+            </td>
+        </tr>
+    {% endif %}
     </table>
     <p>
         <a href="{{ url_for('main.todo_list', username=current_user.username) }}">

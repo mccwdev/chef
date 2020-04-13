@@ -47,8 +47,8 @@ class MessageForm(FlaskForm):
 
 class TodoCreateForm(FlaskForm):
     name = StringField(_l('Todo'), validators=[DataRequired()])
-    description = StringField(_('Description'))
-    assigned_to_user_id = SelectField(_('Assign to'), coerce=int, validators=[DataRequired()])
-    score = IntegerField(_('Score'), default=1)
-    priority = SelectField(_('Priority'), default=3, coerce=int, choices=CHOICES_PRIORITY)
+    description = StringField(_l('Description'))
+    assigned_to_user_id = SelectField(_l('Assign to'), coerce=int, validators=[DataRequired()])
+    score = IntegerField(_l('Score'), default=1)
+    priority = SelectField(_l('Priority'), default=3, coerce=int, choices=CHOICES_PRIORITY)
     submit = SubmitField(_l('Submit'))

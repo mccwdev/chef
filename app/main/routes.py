@@ -22,9 +22,7 @@ def before_request():
 
 @bp.route('/')
 @bp.route('/index')
-@login_required
 def index():
-
     page = request.args.get('page', 1, type=int)
     posts = Post.query.order_by(Post.timestamp.desc()).paginate(
         page, current_app.config['POSTS_PER_PAGE'], False)
@@ -32,14 +30,16 @@ def index():
         if posts.has_next else None
     prev_url = url_for('main.index', page=posts.prev_num) \
         if posts.has_prev else None
-    todo_list = Todo.query.filter(Todo.assigned_to_user_id == current_user.id, Todo.priority <= 3).all()
+    if current_user.get_id():
+        todo_list = Todo.query.filter(Todo.assigned_to_user_id == current_user.id).all()
+    else:
+        todo_list = Todo.query.all()
     return render_template('index.html', title=_('Home'),
                            posts=posts.items, next_url=next_url,
                            prev_url=prev_url, todo_list=todo_list)
 
 
 @bp.route('/explore', methods=['GET', 'POST'])
-@login_required
 def explore():
     form = PostForm()
     if form.validate_on_submit():
@@ -64,7 +64,6 @@ def explore():
 
 
 @bp.route('/user/<username>')
-@login_required
 def user(username):
     user = User.query.filter_by(username=username).first_or_404()
     page = request.args.get('page', 1, type=int)
@@ -227,8 +226,8 @@ def notifications():
 
 
 @bp.route('/todo_list', defaults={'username': ''})
+@bp.route('/todo_list/', defaults={'username': ''})
 @bp.route('/todo_list/<username>')
-@login_required
 def todo_list(username):
     show_completed = request.args.get('show_completed', False, type=bool)
     user = User.query.filter_by(username=username).first()
@@ -243,7 +242,6 @@ def todo_list(username):
 
 
 @bp.route('/todo/<id>')
-@login_required
 def todo(id):
     todo = Todo.query.filter(Todo.id == id).first_or_404()
     return render_template('todo.html', todo=todo)
